@@ -12,6 +12,26 @@ const seed = require("./seed");
 
 app.use(express.json());
 
+app.use(
+  basicAuth({
+    authorizer: dbAuthorizer,
+    authorizeAsync: true,
+    unauthorizedResponse: () => "You are not authorized",
+  })
+);
+
+async function dbAuthorizer(username, password, callback) {
+  try {
+    const user = await Users.findOne({ where: { username: username } });
+    const isValid =
+      user != null ? await bcrypt.compare(password, user.password) : false;
+    callback(null, isValid);
+  } catch (err) {
+    console.log("Error: ", err);
+    callback(null, false);
+  }
+}
+
 app.get("/", (req, res) => {
   res.send("Welcome to RestfulAPI");
 });
