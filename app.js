@@ -1,4 +1,7 @@
 const express = require("express");
+const basicAuth = require("express-basic-auth");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const app = express();
 
@@ -25,8 +28,37 @@ app.get("/users/:id", async (req, res) => {
 });
 //post a new users
 app.post("/users", async (req, res) => {
-  const newuser = await Users.create(req.body);
-  res.json({ newuser });
+  const username = req.body.username;
+  const password = req.body.password;
+
+  bcrypt.hash(password, saltRounds, async function (err, hash) {
+    const newuser = await Users.create({ username: username, password: hash });
+    res.json({ newuser });
+  });
+  // const newuser = await Users.create(req.body);
+  // res.json({ newuser });
+});
+
+//New session
+app.post("/session", async (req, res) => {
+  const thisuser = await Users.findOne({
+    where: { username: req.body.username },
+  });
+  if (!thisuser) {
+    res.json({ message: "no user found by that username" });
+  } else {
+    bcrypt.compare(
+      req.body.password,
+      thisuser.password,
+      async function (err, result) {
+        if (result) {
+          res.json({ thisuser });
+        } else {
+          res.json({ message: "password do not match" });
+        }
+      }
+    );
+  }
 });
 
 //update user info
