@@ -1,36 +1,32 @@
 const express = require("express");
-const basicAuth = require("express-basic-auth");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 const app = express();
 
-const port = 4000;
+const port = process.env.PORT || 4000;
+
+const { expressjwt: jwt } = require("express-jwt");
+const jwks = require("jwks-rsa");
 
 const { Users } = require("./api/class");
 const seed = require("./seed");
 
 app.use(express.json());
 
-app.use(
-  basicAuth({
-    authorizer: dbAuthorizer,
-    authorizeAsync: true,
-    unauthorizedResponse: () => "You are not authorized",
-  })
-);
+const jwtCheck = jwt({
+  secret: jwks.expressJwtSecret({
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5,
+    jwksUri: "https://dev-0nf0mzq3.us.auth0.com/.well-known/jwks.json",
+  }),
+  audience: "http://localhost:4000",
+  issuer: "https://dev-0nf0mzq3.us.auth0.com/",
+  algorithms: ["RS256"],
+});
 
-async function dbAuthorizer(username, password, callback) {
-  try {
-    const user = await Users.findOne({ where: { username: username } });
-    const isValid =
-      user != null ? await bcrypt.compare(password, user.password) : false;
-    callback(null, isValid);
-  } catch (err) {
-    console.log("Error: ", err);
-    callback(null, false);
-  }
-}
+app.use(jwtCheck);
 
 app.get("/", (req, res) => {
   res.send("Welcome to RestfulAPI");
